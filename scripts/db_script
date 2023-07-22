@@ -1,0 +1,313 @@
+-- Enums
+CREATE TYPE tweet_reply_constraint AS ENUM('everyone', 'following-only');
+CREATE TYPE group_member_role AS ENUM('member', 'moderator');
+
+-- Tables
+CREATE TABLE users (
+	id UUID PRIMARY KEY,
+	fullname VARCHAR(255) NOT NULL,
+	username VARCHAR(30) UNIQUE NOT NULL,
+	email VARCHAR(255) NOT NULL,
+	description TEXT NOT NULL,
+	encrypted_password VARCHAR(255) NOT NULL,
+	profile_image JSONB NOT NULL,
+	background_image JSONB NOT NULL,
+	follower_count INT NOT NULL,
+	following_count INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	updated_at TIMESTAMPTZ NOT NULL,
+	CHECK (LENGTH(fullname) >= 1),
+	CHECK (LENGTH(username) >= 1),
+	CHECK (LENGTH(username) <= 30),
+	CHECK (email ~* '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')
+);
+
+CREATE TABLE hashtags (
+	id UUID PRIMARY KEY,
+	name VARCHAR(30) NOT NULL,
+	ref_count INT NOT NULL
+	CHECK (LENGTH(name) >= 1),
+	CHECK (LENGTH(name) <= 30)
+);
+
+CREATE TABLE groups (
+	id UUID PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	description TEXT NOT NULL,
+	image JSONB NOT NULL,
+	member_count INT NOT NULL,
+	CHECK (LENGTH(name) >= 1)
+);
+
+CREATE TABLE tweets (
+	id UUID PRIMARY KEY,
+	user_id UUID NOT NULL,
+	group_id UUID,
+	description TEXT NOT NULL,
+	images JSONB,
+	reply_constraint tweet_reply_constraint NOT NULL,
+	comment_count INT NOT NULL,
+	like_count INT NOT NULL,
+	retweet_count INT NOT NULL,
+	save_count INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	updated_at TIMESTAMPTZ NOT NULL,
+	FOREIGN KEY(user_id) REFERENCES users(id),
+	FOREIGN KEY(group_id) REFERENCES groups(id),
+	CHECK (LENGTH(description) >= 1)
+);
+
+CREATE TABLE comments (
+	id UUID PRIMARY KEY,
+	tweet_id UUID NOT NULL,
+	user_id UUID NOT NULL,
+	comment TEXT NOT NULL,
+	images JSONB,
+	like_count INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	updated_at TIMESTAMPTZ NOT NULL,
+	FOREIGN KEY (tweet_id) REFERENCES tweets(id),
+	FOREIGN KEY (user_id) REFERENCES users(id),
+	CHECK (LENGTH(comment) >=1)
+);
+
+CREATE TABLE follows (
+	follower_id UUID NOT NULL,
+	following_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	PRIMARY KEY(follower_id, following_id),
+	FOREIGN KEY (follower_id) REFERENCES users(id),
+	FOREIGN KEY (following_id) REFERENCES users(id)
+);
+
+CREATE TABLE saves (
+	user_id UUID NOT NULL,
+	tweet_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	PRIMARY KEY (user_id, tweet_id),
+	FOREIGN KEY (user_id) REFERENCES users(id),
+	FOREIGN KEY (tweet_id) REFERENCES tweets(id)
+);
+
+CREATE TABLE retweets(
+	tweet_id UUID NOT NULL,
+	user_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	PRIMARY KEY(tweet_id, user_id),
+	FOREIGN KEY (tweet_id) REFERENCES tweets(id),
+	FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE groupmembers (
+	group_id UUID NOT NULL,
+	member_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	updated_at TIMESTAMPTZ NOT NULL,
+	role group_member_role NOT NULL,
+	PRIMARY KEY (group_id, member_id),
+	FOREIGN KEY(group_id) REFERENCES groups(id),
+	FOREIGN KEY (member_id) REFERENCES users(id)
+);
+
+CREATE TABLE tagreferences(
+	tag_id UUID NOT NULL,
+	resource_id UUID NOT NULL,
+	PRIMARY KEY(tag_id, resource_id),
+	FOREIGN KEY (tag_id) REFERENCES hashtags(id),
+	FOREIGN KEY (resource_id) REFERENCES tweets(id),
+	FOREIGN KEY (resource_id) REFERENCES comments(id)
+);
+
+CREATE TABLE likes(
+	user_id UUID NOT NULL,
+	resource_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	PRIMARY KEY(user_id, resource_id),
+	FOREIGN KEY(user_id) REFERENCES users(id),
+	FOREIGN KEY(resource_id) REFERENCES comments(id),
+	FOREIGN KEY(resource_id) REFERENCES tweets(id)
+);
+
+CREATE TABLE token_sets (
+	id UUID PRIMARY KEY,
+	user_id UUID NOT NULL,
+	rt_id TEXT NOT NULL,
+	prt_id TEXT NOT NULL,
+	updated_at TIMESTAMPTZ NOT NULL,
+	FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+-- Triggers
+-- trigger for maintaining user follower count
+CREATE FUNCTION maintain_user_follower_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN 
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE users SET follower_count = follower_count - 1 WHERE id = old.following_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE users SET follower_count = follower_count + 1 WHERE id = new.following_id;
+	END IF;
+	RETURN NULL;
+END
+$$
+LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_user_follower_count
+AFTER INSERT OR DELETE ON follows
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_user_follower_count_trg();
+
+-- trigger for maintaining user following count
+CREATE FUNCTION maintain_user_following_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE users SET following_count = following_count - 1 WHERE id = old.follower_id; 
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE users SET following_count = following_count + 1 WHERE id = new.follower_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_user_following_count
+AFTER INSERT OR DELETE ON follows
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_user_following_count_trg();
+
+-- trigger for maintaining hashtag ref count
+CREATE FUNCTION maintain_hashtag_ref_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE hashtags SET ref_count = ref_count - 1 WHERE id = old.tag_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE hashtags SET ref_count = ref_count + 1 WHERE id = new.tag_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_hashtag_ref_count
+AFTER INSERT OR DELETE ON tagreferences
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_hashtag_ref_count_trg();
+
+-- trigger for maintaining tweeet comment count
+CREATE FUNCTION maintain_tweet_comment_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE tweets SET comment_count = comment_count - 1 WHERE id = old.tweet_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE tweets SET comment_count = comment_count + 1 WHERE id = new.tweet_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_tweet_comment_count
+AFTER INSERT OR DELETE ON comments
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_tweet_comment_count_trg();
+
+-- trigger for maintaining tweet like count
+CREATE FUNCTION maintain_tweet_like_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE tweets SET like_count = like_count - 1 WHERE id = old.resource_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE tweets SET like_count = like_count + 1 WHERE id = new.resource_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_tweet_like_count
+AFTER INSERT OR DELETE ON likes
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_tweet_like_count_trg();
+
+-- trigger for maintaining tweet retweet count
+CREATE FUNCTION maintain_tweet_retweet_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE tweets SET retweet_count = retweet_count - 1 WHERE id = old.tweet_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE tweets SET retweet_count = retweet_count + 1 WHERE id = new.tweet_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_tweet_retweet_count
+AFTER INSERT OR DELETE ON retweets
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_tweet_retweet_count_trg();
+
+-- trigger for maintaining tweet save count
+CREATE FUNCTION maintain_tweet_save_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE tweets SET save_count = save_count - 1 WHERE id = old.tweet_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE tweets SET save_count = save_count + 1 WHERE id = new.tweet_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_tweet_save_count
+AFTER INSERT OR DELETE ON saves
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_tweet_save_count_trg();
+
+-- trigger for maintaining comment like count
+CREATE FUNCTION maintain_comment_like_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE comments SET like_count = like_count - 1 WHERE id = old.resource_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE comments SET like_count = like_count + 1 WHERE id = new.resource_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_comment_like_count
+AFTER INSERT OR DELETE ON likes
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_comment_like_count_trg();
+
+-- trigger for maintaining group member count
+CREATE FUNCTION maintain_group_member_count_trg() RETURNS TRIGGER AS
+$$
+BEGIN
+	IF TG_OP IN ('DELETE') THEN
+		UPDATE groups SET member_count = member_count - 1 WHERE id = old.group_id;
+	END IF;
+	IF TG_OP IN ('INSERT') THEN
+		UPDATE groups SET member_count = member_count + 1 WHERE id = new.group_id;
+	END IF;
+	RETURN NULL;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER maintain_group_member_count
+AFTER INSERT OR DELETE ON groupmembers
+FOR EACH ROW
+EXECUTE PROCEDURE maintain_group_member_count_trg();
+
+
