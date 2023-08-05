@@ -13,6 +13,7 @@ import (
 	"github.com/jordyf15/tweeter-api/token"
 	"github.com/jordyf15/tweeter-api/user"
 	"github.com/jordyf15/tweeter-api/utils"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type userUsecase struct {
@@ -133,6 +134,36 @@ func (usecase *userUsecase) Create(_user *models.User) (map[string]interface{}, 
 	accessToken, refreshToken, _ := usecase.For(_user).GenerateTokens()
 
 	response := utils.DataResponse(_user, map[string]interface{}{
+		"access_token":  accessToken.ToJWTString(),
+		"refresh_token": refreshToken.ToJWTString(),
+		"expires_at":    accessToken.ExpiresAt,
+	})
+
+	return response, nil
+}
+
+func (usecase *userUsecase) Login(login, password string) (map[string]interface{}, error) {
+	user, err := usecase.userRepo.GetByEmailOrUsername(login)
+	if err != nil {
+		return nil, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.EncryptedPassword), []byte(password))
+	if err != nil {
+		if err == bcrypt.ErrMismatchedHashAndPassword {
+			return nil, custom_errors.ErrPasswordIncorrect
+		}
+		return nil, err
+	}
+
+	accessToken, refreshToken, err := usecase.For(user).GenerateTokens()
+	if err != nil {
+		return nil, err
+	}
+
+	usecase.storage.AssignImageURLToUser(user)
+
+	response := utils.DataResponse(user, map[string]interface{}{
 		"access_token":  accessToken.ToJWTString(),
 		"refresh_token": refreshToken.ToJWTString(),
 		"expires_at":    accessToken.ExpiresAt,

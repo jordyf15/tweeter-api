@@ -53,6 +53,29 @@ func (_m *Usecase) For(_a0 *models.User) user.InstanceUsecase {
 	return r0
 }
 
+// Login provides a mock function with given fields: login, password
+func (_m *Usecase) Login(login string, password string) (map[string]interface{}, error) {
+	ret := _m.Called(login, password)
+
+	var r0 map[string]interface{}
+	if rf, ok := ret.Get(0).(func(string, string) map[string]interface{}); ok {
+		r0 = rf(login, password)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]interface{})
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(login, password)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewUsecase interface {
 	mock.TestingT
 	Cleanup(func())

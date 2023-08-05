@@ -23,3 +23,10 @@ func (repo *userRepository) CreateTransaction(fn func(repo user.Repository) erro
 		return fn(&userRepository{DB: tx})
 	})
 }
+
+func (repo *userRepository) GetByEmailOrUsername(str string) (*models.User, error) {
+	user := &models.User{}
+	err := repo.DB.Table("users").Where("email = (?) OR username = (?)", str, str).First(user).Error
+
+	return user, err
+}

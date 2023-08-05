@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestUserUsecase(t *testing.T) {
@@ -30,15 +31,21 @@ type userUsecaseSuite struct {
 
 var (
 	utUser = &models.User{
-		ID:             "id",
-		Email:          "gura@gmail.com",
-		Fullname:       "gawr gura",
-		Username:       "gura",
-		Description:    "",
-		FollowerCount:  0,
-		FollowingCount: 0,
+		ID:                "id",
+		Email:             "gura@gmail.com",
+		Fullname:          "gawr gura",
+		Username:          "gura",
+		Description:       "",
+		EncryptedPassword: bcryptHash("Password123!"),
+		FollowerCount:     0,
+		FollowingCount:    0,
 	}
 )
+
+func bcryptHash(str string) string {
+	hashedStr, _ := bcrypt.GenerateFromPassword([]byte(str), bcrypt.DefaultCost)
+	return string(hashedStr)
+}
 
 func (s *userUsecaseSuite) SetupTest() {
 	s.userRepo = new(userMocks.Repository)
@@ -56,6 +63,7 @@ func (s *userUsecaseSuite) SetupTest() {
 	s.tokenRepo.On("Create", mock.AnythingOfType("*models.TokenSet")).Return(nil)
 	s.userRepo.On("CreateTransaction", mock.Anything).Return(nil)
 	s.userRepo.On("Create", mock.AnythingOfType("*models.User")).Return(nil)
+	s.userRepo.On("GetByEmailOrUsername", mock.AnythingOfType("string")).Return(utUser, nil)
 
 	s.usecase = usecase.NewUserUsecase(s.userRepo, s.tokenRepo, s.storageMock)
 }
@@ -258,4 +266,46 @@ func (s *userUsecaseSuite) TestCreateSuccessful() {
 	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 1)
 	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 1)
 	s.tokenRepo.AssertNumberOfCalls(s.T(), "Create", 1)
+}
+
+func (s *userUsecaseSuite) TestLoginIncorrectPassword() {
+	response, err := s.usecase.Login("gura", "wrongPassword")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrPasswordIncorrect.Error(), err.Error())
+	assert.Nil(s.T(), response)
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByEmailOrUsername", 1)
+	s.tokenRepo.AssertNumberOfCalls(s.T(), "Create", 0)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestLoginSuccessful() {
+	response, err := s.usecase.Login("gura", "Password123!")
+	assert.NoError(s.T(), err)
+
+	data, isExist := response["data"].(*models.User)
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), utUser.Email, data.Email)
+	assert.Equal(s.T(), utUser.Fullname, data.Fullname)
+	assert.Equal(s.T(), utUser.Username, data.Username)
+	assert.Equal(s.T(), utUser.FollowerCount, data.FollowerCount)
+	assert.Equal(s.T(), utUser.FollowingCount, data.FollowingCount)
+	assert.NotEmpty(s.T(), utUser.ID)
+
+	meta, isExist := response["meta"].(map[string]interface{})
+	assert.True(s.T(), isExist)
+
+	_, isExist = meta["access_token"]
+	assert.True(s.T(), isExist)
+
+	_, isExist = meta["expires_at"]
+	assert.True(s.T(), isExist)
+
+	_, isExist = meta["refresh_token"]
+	assert.True(s.T(), isExist)
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByEmailOrUsername", 1)
+	s.tokenRepo.AssertNumberOfCalls(s.T(), "Create", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 1)
 }

@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jordyf15/tweeter-api/custom_errors"
 	"github.com/jordyf15/tweeter-api/models"
 	"github.com/jordyf15/tweeter-api/user"
 )
 
 type UsersController interface {
 	Register(c *gin.Context)
+	Login(c *gin.Context)
 }
 
 type usersController struct {
@@ -34,4 +36,29 @@ func (controller *usersController) Register(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func (controller *usersController) Login(c *gin.Context) {
+	errors := make([]error, 0)
+
+	login := c.PostForm("login")
+	password := c.PostForm("password")
+	if login == "" {
+		errors = append(errors, custom_errors.ErrEmptyLogin)
+	}
+	if password == "" {
+		errors = append(errors, custom_errors.ErrEmptyPassword)
+	}
+
+	if len(errors) > 0 {
+		respondBasedOnError(c, &custom_errors.MultipleErrors{Errors: errors})
+		return
+	}
+
+	response, err := controller.userUsecase.Login(login, password)
+	if err != nil {
+		respondBasedOnError(c, err)
+	} else {
+		c.JSON(http.StatusOK, response)
+	}
 }

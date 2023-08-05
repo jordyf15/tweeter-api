@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jordyf15/tweeter-api/controllers"
+	"github.com/jordyf15/tweeter-api/custom_errors"
 	"github.com/jordyf15/tweeter-api/models"
 	userMocks "github.com/jordyf15/tweeter-api/user/mocks"
 	"github.com/jordyf15/tweeter-api/utils"
@@ -72,12 +73,14 @@ func (s *userControllerSuite) SetupTest() {
 	})
 
 	userUsecase.On("Create", mock.AnythingOfType("*models.User")).Return(response, nil)
+	userUsecase.On("Login", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(response, nil)
 
 	s.controller = controllers.NewUsersController(userUsecase)
 	s.response = httptest.NewRecorder()
 	s.context, s.router = gin.CreateTestContext(s.response)
 
 	s.router.POST("/register", s.controller.Register)
+	s.router.POST("/login", s.controller.Login)
 }
 
 func (s *userControllerSuite) TestCreateUser() {
@@ -96,6 +99,142 @@ func (s *userControllerSuite) TestCreateUser() {
 	writer.Close()
 
 	s.context.Request, _ = http.NewRequest("POST", "/register", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusOK, s.response.Code)
+
+	data, isExist := receivedResponse["data"].(map[string]interface{})
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.ID, data["id"])
+	assert.Equal(s.T(), uctUser.Username, data["username"])
+	assert.Equal(s.T(), uctUser.Fullname, data["fullname"])
+	assert.Equal(s.T(), uctUser.Email, data["email"])
+	assert.Equal(s.T(), uctUser.Description, data["description"])
+	assert.Equal(s.T(), float64(uctUser.FollowerCount), data["follower_count"])
+	assert.Equal(s.T(), float64(uctUser.FollowingCount), data["following_count"])
+
+	profileImages, isExist := data["profile_images"].([]interface{})
+	assert.True(s.T(), isExist)
+	profileImage1 := profileImages[0].(map[string]interface{})
+	width, isExist := profileImage1["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[0].Width), width)
+	height, isExist := profileImage1["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[0].Height), height)
+	url, isExist := profileImage1["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.ProfileImages[0].URL, url)
+
+	profileImage2 := profileImages[1].(map[string]interface{})
+	width, isExist = profileImage2["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[1].Width), width)
+	height, isExist = profileImage2["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[1].Height), height)
+	url, isExist = profileImage2["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.ProfileImages[1].URL, url)
+
+	backgroundImage, isExist := data["background_image"].(map[string]interface{})
+	assert.True(s.T(), isExist)
+	width, isExist = backgroundImage["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.BackgroundImage.Width), width)
+	height, isExist = backgroundImage["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.BackgroundImage.Height), height)
+	url, isExist = backgroundImage["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.BackgroundImage.URL, url)
+
+	meta, isExist := receivedResponse["meta"].(map[string]interface{})
+	assert.True(s.T(), isExist)
+	accessToken, isExist := meta["access_token"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), "accessToken", accessToken)
+	refreshToken, isExist := meta["refresh_token"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), refreshToken, "refreshToken")
+}
+
+func (s *userControllerSuite) TestLoginEmptyLogin() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("login")
+	login.Write([]byte(""))
+	password, _ := writer.CreateFormField("password")
+	password.Write([]byte("Password123!"))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", "/login", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusBadRequest, s.response.Code)
+
+	errors, isExist := receivedResponse["errors"].([]interface{})
+	assert.True(s.T(), isExist)
+
+	error1 := errors[0].(map[string]interface{})
+	msg, isExist := error1["message"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), custom_errors.ErrEmptyLogin.Message, msg)
+
+	code, isExist := error1["code"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(custom_errors.ErrEmptyLogin.Code), code)
+}
+
+func (s *userControllerSuite) TestLoginEmptyPassword() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("login")
+	login.Write([]byte("jordyf15"))
+	password, _ := writer.CreateFormField("password")
+	password.Write([]byte(""))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", "/login", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusBadRequest, s.response.Code)
+
+	errors, isExist := receivedResponse["errors"].([]interface{})
+	assert.True(s.T(), isExist)
+
+	error1 := errors[0].(map[string]interface{})
+	msg, isExist := error1["message"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), custom_errors.ErrEmptyPassword.Message, msg)
+
+	code, isExist := error1["code"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(custom_errors.ErrEmptyPassword.Code), code)
+}
+
+func (s *userControllerSuite) TestLoginSuccessful() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("login")
+	login.Write([]byte("jordyf15"))
+	password, _ := writer.CreateFormField("password")
+	password.Write([]byte("Password123!"))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", "/login", buf)
 	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
 	s.router.ServeHTTP(s.response, s.context.Request)
 	json.NewDecoder(s.response.Body).Decode(&receivedResponse)

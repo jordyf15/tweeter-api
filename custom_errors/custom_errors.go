@@ -50,6 +50,12 @@ var (
 	ErrUsernameAlreadyExist = newErr(312, "Username already exists")
 	// ErrUsernameInvalid Error returned when the inputted username is invalid or does not match the required pattern
 	ErrUsernameInvalid = newErr(313, "Invalid username")
+	// ErrPasswordIncorrect Error returned when the inputted password is incorrect
+	ErrPasswordIncorrect = newErr(314, "Incorrect password")
+	// ErrEmptyLogin Error returned when the inputted login is an empty string
+	ErrEmptyLogin = newErr(315, "Empty login")
+	// ErrEmptyPassword Error returned when the inputted password is an empty string
+	ErrEmptyPassword = newErr(316, "Empty password")
 )
 
 type Error struct {

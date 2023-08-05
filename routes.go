@@ -22,6 +22,7 @@ func initializeRoutes() {
 	userController := controllers.NewUsersController(userUsecase)
 
 	router.POST("register", userController.Register)
+	router.POST("login", userController.Login)
 
 	router.POST("tokens/refresh", tokenController.RefreshAccessToken)
 	router.DELETE("tokens/remove", tokenController.DeleteRefreshToken)
