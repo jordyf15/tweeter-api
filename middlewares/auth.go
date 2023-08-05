@@ -24,7 +24,7 @@ func NewAuthMiddleware(usecase token.Usecase) *AuthMiddleware {
 
 func (middleware *AuthMiddleware) AuthenticateJWT(c *gin.Context) {
 	noAuth := map[string][]string{
-		"POST":   {},
+		"POST":   {"/register"},
 		"GET":    {},
 		"DELETE": {},
 	}

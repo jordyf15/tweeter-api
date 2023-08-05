@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jordyf15/tweeter-api/models"
 	"github.com/jordyf15/tweeter-api/token"
 	"github.com/redis/go-redis/v9"
@@ -62,6 +63,8 @@ func (repo *tokenRepository) Remove(accessToken *models.AccessToken) error {
 }
 
 func (repo *tokenRepository) Create(tokenSet *models.TokenSet) error {
+	tokenSet.ID = uuid.New().String()
+
 	return repo.db.Create(tokenSet).Error
 }
 

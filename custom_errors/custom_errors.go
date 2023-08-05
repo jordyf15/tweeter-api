@@ -22,6 +22,34 @@ var (
 	ErrInvalidAccessToken = newErr(205, "Invalid access token")
 	// ErrAccessTokenExpired access token not signed on this server.
 	ErrAccessTokenExpired = newErr(206, "Access token expired")
+
+	// user errors
+	// ErrProfileImageTooLarge Error returned when the inputted image file size is too large
+	ErrProfileImageTooLarge = newErr(301, "Profile image must be less than 2MB")
+	// ErrBackgroundImageTooLarge Error returned when the inputted image file size is too large
+	ErrBackgroundImageTooLarge = newErr(302, "Background image must be less than 5MB")
+	// ErrEmailAddressInvalid Error returned when the inputted email is invalid or does not match the required pattern
+	ErrEmailAddressInvalid = newErr(303, "Invalid email address")
+	// ErrFullnameTooShort Error returned when the inputted fullname is too short
+	ErrFullnameTooShort = newErr(304, "Fullname is too short")
+	// ErrFullnameTooLong Error returned when the inputted fullname is too long
+	ErrFullnameTooLong = newErr(305, "Fullname is too long")
+	// ErrUsernameTooShort Error returned when the inputted username is too short
+	ErrUsernameTooShort = newErr(306, "Username is too short")
+	// ErrUsernameTooLong Error returned when the inputted username is too long
+	ErrUsernameTooLong = newErr(307, "Username is too long")
+	// ErrPasswordTooShort Error returned when the inputted password is too short
+	ErrPasswordTooShort = newErr(308, "Password is too short")
+	// ErrPasswordTooLong Error returned when the inputted password is too long
+	ErrPasswordTooLong = newErr(309, "Password is too long")
+	// ErrPasswordInvalid Error returned when the inputted password is invalid or does not match the required pattern
+	ErrPasswordInvalid = newErr(310, "Invalid password")
+	// ErrEmailAlreadyExist Error returned when the inputted email is already used
+	ErrEmailAlreadyExist = newErr(311, "Email already exists")
+	// ErrUsernameAlreadyExist Error returned when the inputted username is already used
+	ErrUsernameAlreadyExist = newErr(312, "Username already exists")
+	// ErrUsernameInvalid Error returned when the inputted username is invalid or does not match the required pattern
+	ErrUsernameInvalid = newErr(313, "Invalid username")
 )
 
 type Error struct {

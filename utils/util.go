@@ -45,3 +45,11 @@ func RandString(n int) string {
 func Message(status bool, message string) map[string]interface{} {
 	return map[string]interface{}{"status": status, "message": message}
 }
+
+func RandFileName(prefix, suffix string) string {
+	return prefix + RandString(8) + suffix
+}
+
+func DataResponse(data interface{}, metadata interface{}) map[string]interface{} {
+	return map[string]interface{}{"data": data, "meta": metadata}
+}

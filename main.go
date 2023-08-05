@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/jordyf15/tweeter-api/middlewares"
@@ -35,6 +37,15 @@ func init() {
 
 func main() {
 	router = gin.Default()
+
+	if allowedOriginsEnvValue := os.Getenv("ALLOWED_ORIGINS"); len(allowedOriginsEnvValue) > 0 {
+		allowedOrigins := strings.Split(allowedOriginsEnvValue, ",")
+		config := cors.DefaultConfig()
+		config.AllowOrigins = allowedOrigins
+		config.AllowHeaders = []string{"Origin", "Authorization"}
+
+		router.Use(cors.New(config))
+	}
 
 	tokenRepo := repository.NewTokenRepository(db, redisClient)
 	authMiddleware := middlewares.NewAuthMiddleware(usecase.NewTokenUsecase(tokenRepo))

@@ -10,14 +10,15 @@ CREATE TABLE users (
 	email VARCHAR(255) NOT NULL,
 	description TEXT NOT NULL,
 	encrypted_password VARCHAR(255) NOT NULL,
-	profile_image JSONB NOT NULL,
-	background_image JSONB NOT NULL,
+	profile_images JSONB NOT NULL,
+	background_image JSON NOT NULL,
 	follower_count INT NOT NULL,
 	following_count INT NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL,
 	updated_at TIMESTAMPTZ NOT NULL,
 	CHECK (LENGTH(fullname) >= 1),
-	CHECK (LENGTH(username) >= 1),
+	CHECK (LENGTH(fullname) <= 255),
+	CHECK (LENGTH(username) >= 3),
 	CHECK (LENGTH(username) <= 30),
 	CHECK (email ~* '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')
 );
@@ -132,7 +133,7 @@ CREATE TABLE token_sets (
 	id UUID PRIMARY KEY,
 	user_id UUID NOT NULL,
 	rt_id TEXT NOT NULL,
-	prt_id TEXT NOT NULL,
+	prt_id TEXT,
 	updated_at TIMESTAMPTZ NOT NULL,
 	FOREIGN KEY(user_id) REFERENCES users(id)
 );
