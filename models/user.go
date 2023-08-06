@@ -120,9 +120,9 @@ func (user *User) SetPassword(newPassword string) error {
 
 func (user *User) BeforeSave(tx *gorm.DB) error {
 	errors := []error{}
-	tempUser := &[]User{}
-	err := tx.Where("email = (?) OR username = (?)", user.Email, user.Username).Find(tempUser).Error
 
+	tempUser := &[]User{}
+	err := tx.Where("id <> (?) AND (email = (?) OR username = (?))", user.ID, user.Email, user.Username).Find(tempUser).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return err
 	}

@@ -185,3 +185,30 @@ func (usecase *userInstanceUsecase) GenerateTokens() (*models.AccessToken, *mode
 
 	return accessToken, refreshToken, nil
 }
+
+func (usecase *userUsecase) ChangeUserPassword(userId, oldPassword, newPassword string) error {
+	user, err := usecase.userRepo.GetByID(userId)
+	if err != nil {
+		return err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.EncryptedPassword), []byte(oldPassword))
+	if err != nil {
+		if err == bcrypt.ErrMismatchedHashAndPassword {
+			return custom_errors.ErrPasswordIncorrect
+		}
+		return err
+	}
+
+	err = user.SetPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	err = usecase.userRepo.Update(user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

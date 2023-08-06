@@ -56,6 +56,10 @@ var (
 	ErrEmptyLogin = newErr(315, "Empty login")
 	// ErrEmptyPassword Error returned when the inputted password is an empty string
 	ErrEmptyPassword = newErr(316, "Empty password")
+	// ErrEmptyOldPassword Error returned when the inputted old password is an empty string
+	ErrEmptyOldPassword = newErr(317, "Empty old password")
+	// ErrEmptyNewPassword Error returned when the inputted new password is an empty string
+	ErrEmptyNewPassword = newErr(318, "Empty new password")
 )
 
 type Error struct {

@@ -65,6 +65,43 @@ func (_m *Repository) GetByEmailOrUsername(str string) (*models.User, error) {
 	return r0, r1
 }
 
+// GetByID provides a mock function with given fields: id
+func (_m *Repository) GetByID(id string) (*models.User, error) {
+	ret := _m.Called(id)
+
+	var r0 *models.User
+	if rf, ok := ret.Get(0).(func(string) *models.User); ok {
+		r0 = rf(id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.User)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Update provides a mock function with given fields: _a0
+func (_m *Repository) Update(_a0 *models.User) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*models.User) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewRepository interface {
 	mock.TestingT
 	Cleanup(func())

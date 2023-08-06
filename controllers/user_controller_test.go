@@ -3,6 +3,7 @@ package controllers_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -74,6 +75,7 @@ func (s *userControllerSuite) SetupTest() {
 
 	userUsecase.On("Create", mock.AnythingOfType("*models.User")).Return(response, nil)
 	userUsecase.On("Login", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(response, nil)
+	userUsecase.On("ChangeUserPassword", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 	s.controller = controllers.NewUsersController(userUsecase)
 	s.response = httptest.NewRecorder()
@@ -81,6 +83,7 @@ func (s *userControllerSuite) SetupTest() {
 
 	s.router.POST("/register", s.controller.Register)
 	s.router.POST("/login", s.controller.Login)
+	s.router.POST("users/:user_id/password/change", s.controller.ChangeUserPassword)
 }
 
 func (s *userControllerSuite) TestCreateUser() {
@@ -295,4 +298,82 @@ func (s *userControllerSuite) TestLoginSuccessful() {
 	refreshToken, isExist := meta["refresh_token"]
 	assert.True(s.T(), isExist)
 	assert.Equal(s.T(), refreshToken, "refreshToken")
+}
+
+func (s *userControllerSuite) TestChangeUserPasswordOldPasswordEmpty() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("old_password")
+	login.Write([]byte(""))
+	password, _ := writer.CreateFormField("new_password")
+	password.Write([]byte("Password123!"))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", "/users/userId/password/change", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusBadRequest, s.response.Code)
+
+	errors, isExist := receivedResponse["errors"].([]interface{})
+	assert.True(s.T(), isExist)
+
+	error1 := errors[0].(map[string]interface{})
+	msg, isExist := error1["message"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), custom_errors.ErrEmptyOldPassword.Message, msg)
+
+	code, isExist := error1["code"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(custom_errors.ErrEmptyOldPassword.Code), code)
+}
+
+func (s *userControllerSuite) TestChangeUserPasswordNewPasswordEmpty() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("old_password")
+	login.Write([]byte("Password123!"))
+	password, _ := writer.CreateFormField("new_password")
+	password.Write([]byte(""))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", "/users/userId/password/change", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusBadRequest, s.response.Code)
+
+	errors, isExist := receivedResponse["errors"].([]interface{})
+	assert.True(s.T(), isExist)
+
+	error1 := errors[0].(map[string]interface{})
+	msg, isExist := error1["message"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), custom_errors.ErrEmptyNewPassword.Message, msg)
+
+	code, isExist := error1["code"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(custom_errors.ErrEmptyNewPassword.Code), code)
+}
+
+func (s *userControllerSuite) TestChangeUserPasswordSuccessful() {
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	login, _ := writer.CreateFormField("old_password")
+	login.Write([]byte("Password123!"))
+	password, _ := writer.CreateFormField("new_password")
+	password.Write([]byte("Password321!"))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("POST", fmt.Sprintf("/users/%s/password/change", uctUser.ID), buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+
+	assert.Equal(s.T(), http.StatusNoContent, s.response.Code)
 }

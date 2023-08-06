@@ -12,6 +12,7 @@ import (
 type UsersController interface {
 	Register(c *gin.Context)
 	Login(c *gin.Context)
+	ChangeUserPassword(c *gin.Context)
 }
 
 type usersController struct {
@@ -61,4 +62,31 @@ func (controller *usersController) Login(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusOK, response)
 	}
+}
+
+func (controller *usersController) ChangeUserPassword(c *gin.Context) {
+	errors := make([]error, 0)
+	userID := c.Param("user_id")
+
+	oldPassword := c.PostForm("old_password")
+	newPassword := c.PostForm("new_password")
+	if oldPassword == "" {
+		errors = append(errors, custom_errors.ErrEmptyOldPassword)
+	}
+	if newPassword == "" {
+		errors = append(errors, custom_errors.ErrEmptyNewPassword)
+	}
+
+	if len(errors) > 0 {
+		respondBasedOnError(c, &custom_errors.MultipleErrors{Errors: errors})
+		return
+	}
+
+	err := controller.userUsecase.ChangeUserPassword(userID, oldPassword, newPassword)
+	if err != nil {
+		respondBasedOnError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

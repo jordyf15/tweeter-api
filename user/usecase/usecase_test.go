@@ -30,11 +30,21 @@ type userUsecaseSuite struct {
 }
 
 var (
-	utUser = &models.User{
-		ID:                "id",
+	utUser1 = &models.User{
+		ID:                "id1",
 		Email:             "gura@gmail.com",
 		Fullname:          "gawr gura",
 		Username:          "gura",
+		Description:       "",
+		EncryptedPassword: bcryptHash("Password123!"),
+		FollowerCount:     0,
+		FollowingCount:    0,
+	}
+	utUser2 = &models.User{
+		ID:                "id2",
+		Email:             "fubuki@gmail.com",
+		Fullname:          "shirakami fubuki",
+		Username:          "fubuki",
 		Description:       "",
 		EncryptedPassword: bcryptHash("Password123!"),
 		FollowerCount:     0,
@@ -63,7 +73,15 @@ func (s *userUsecaseSuite) SetupTest() {
 	s.tokenRepo.On("Create", mock.AnythingOfType("*models.TokenSet")).Return(nil)
 	s.userRepo.On("CreateTransaction", mock.Anything).Return(nil)
 	s.userRepo.On("Create", mock.AnythingOfType("*models.User")).Return(nil)
-	s.userRepo.On("GetByEmailOrUsername", mock.AnythingOfType("string")).Return(utUser, nil)
+	s.userRepo.On("GetByEmailOrUsername", mock.AnythingOfType("string")).Return(utUser1, nil)
+	s.userRepo.On("GetByID", mock.AnythingOfType("string")).Return(func(userID string) *models.User {
+		if userID == "id1" {
+			return utUser1
+		} else {
+			return utUser2
+		}
+	}, nil)
+	s.userRepo.On("Update", mock.AnythingOfType("*models.User")).Return(nil)
 
 	s.usecase = usecase.NewUserUsecase(s.userRepo, s.tokenRepo, s.storageMock)
 }
@@ -232,9 +250,9 @@ func (s *userUsecaseSuite) TestCreatePasswordInvalid() {
 
 func (s *userUsecaseSuite) TestCreateSuccessful() {
 	user := &models.User{
-		Username: utUser.Username,
-		Fullname: utUser.Fullname,
-		Email:    utUser.Email,
+		Username: utUser1.Username,
+		Fullname: utUser1.Fullname,
+		Email:    utUser1.Email,
 		Password: "Password123!",
 	}
 
@@ -244,12 +262,12 @@ func (s *userUsecaseSuite) TestCreateSuccessful() {
 
 	data, isExist := result["data"].(*models.User)
 	assert.True(s.T(), isExist)
-	assert.Equal(s.T(), utUser.Email, data.Email)
-	assert.Equal(s.T(), utUser.Fullname, data.Fullname)
-	assert.Equal(s.T(), utUser.Username, data.Username)
-	assert.Equal(s.T(), utUser.FollowerCount, data.FollowerCount)
-	assert.Equal(s.T(), utUser.FollowingCount, data.FollowingCount)
-	assert.NotEmpty(s.T(), utUser.ID)
+	assert.Equal(s.T(), utUser1.Email, data.Email)
+	assert.Equal(s.T(), utUser1.Fullname, data.Fullname)
+	assert.Equal(s.T(), utUser1.Username, data.Username)
+	assert.Equal(s.T(), utUser1.FollowerCount, data.FollowerCount)
+	assert.Equal(s.T(), utUser1.FollowingCount, data.FollowingCount)
+	assert.NotEmpty(s.T(), utUser1.ID)
 
 	meta, isExist := result["meta"].(map[string]interface{})
 	assert.True(s.T(), isExist)
@@ -286,12 +304,12 @@ func (s *userUsecaseSuite) TestLoginSuccessful() {
 
 	data, isExist := response["data"].(*models.User)
 	assert.True(s.T(), isExist)
-	assert.Equal(s.T(), utUser.Email, data.Email)
-	assert.Equal(s.T(), utUser.Fullname, data.Fullname)
-	assert.Equal(s.T(), utUser.Username, data.Username)
-	assert.Equal(s.T(), utUser.FollowerCount, data.FollowerCount)
-	assert.Equal(s.T(), utUser.FollowingCount, data.FollowingCount)
-	assert.NotEmpty(s.T(), utUser.ID)
+	assert.Equal(s.T(), utUser1.Email, data.Email)
+	assert.Equal(s.T(), utUser1.Fullname, data.Fullname)
+	assert.Equal(s.T(), utUser1.Username, data.Username)
+	assert.Equal(s.T(), utUser1.FollowerCount, data.FollowerCount)
+	assert.Equal(s.T(), utUser1.FollowingCount, data.FollowingCount)
+	assert.NotEmpty(s.T(), utUser1.ID)
 
 	meta, isExist := response["meta"].(map[string]interface{})
 	assert.True(s.T(), isExist)
@@ -308,4 +326,48 @@ func (s *userUsecaseSuite) TestLoginSuccessful() {
 	s.userRepo.AssertNumberOfCalls(s.T(), "GetByEmailOrUsername", 1)
 	s.tokenRepo.AssertNumberOfCalls(s.T(), "Create", 1)
 	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 1)
+}
+
+func (s *userUsecaseSuite) TestChangeUserPasswordOldPasswordIncorrect() {
+	err := s.usecase.ChangeUserPassword(utUser1.ID, "wrongPassword", "Password123!")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrPasswordIncorrect.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 0)
+}
+
+func (s *userUsecaseSuite) TestChangeUserPasswordNewPasswordTooShort() {
+	err := s.usecase.ChangeUserPassword(utUser1.ID, "Password123!", "P123!")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrPasswordTooShort.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 0)
+}
+
+func (s *userUsecaseSuite) TestChangeUserPasswordNewPasswordTooLong() {
+	err := s.usecase.ChangeUserPassword(utUser1.ID, "Password123!", "Password123!Password123!Password123!Password123!Password123!")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrPasswordTooLong.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 0)
+}
+
+func (s *userUsecaseSuite) TestChangeUserPasswordNewPasswordInvalid() {
+	err := s.usecase.ChangeUserPassword(utUser1.ID, "Password123!", "password")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrPasswordInvalid.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 0)
+}
+
+func (s *userUsecaseSuite) TestChangeUserPasswordSuccessful() {
+	err := s.usecase.ChangeUserPassword(utUser2.ID, "Password123!", "Password321!")
+
+	assert.NoError(s.T(), err)
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 1)
 }

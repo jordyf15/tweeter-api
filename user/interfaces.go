@@ -12,6 +12,7 @@ type Usecase interface {
 	For(user *models.User) InstanceUsecase
 	Create(*models.User) (map[string]interface{}, error)
 	Login(login, password string) (map[string]interface{}, error)
+	ChangeUserPassword(userID, oldPassword, newPassword string) error
 }
 
 type InstanceUsecase interface {
@@ -22,4 +23,6 @@ type Repository interface {
 	Create(user *models.User) error
 	CreateTransaction(fn func(repo Repository) error) error
 	GetByEmailOrUsername(str string) (*models.User, error)
+	GetByID(id string) (*models.User, error)
+	Update(user *models.User) error
 }

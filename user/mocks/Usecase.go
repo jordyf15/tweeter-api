@@ -14,6 +14,20 @@ type Usecase struct {
 	mock.Mock
 }
 
+// ChangeUserPassword provides a mock function with given fields: userID, oldPassword, newPassword
+func (_m *Usecase) ChangeUserPassword(userID string, oldPassword string, newPassword string) error {
+	ret := _m.Called(userID, oldPassword, newPassword)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = rf(userID, oldPassword, newPassword)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Create provides a mock function with given fields: _a0
 func (_m *Usecase) Create(_a0 *models.User) (map[string]interface{}, error) {
 	ret := _m.Called(_a0)

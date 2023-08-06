@@ -30,3 +30,18 @@ func (repo *userRepository) GetByEmailOrUsername(str string) (*models.User, erro
 
 	return user, err
 }
+
+func (repo *userRepository) GetByID(id string) (*models.User, error) {
+	user := &models.User{}
+
+	err := repo.DB.Table("users").Where("id = ?", id).First(user).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (repo *userRepository) Update(user *models.User) error {
+	return repo.DB.Model(user).Select("*").Updates(user).Error
+}
