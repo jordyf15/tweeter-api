@@ -108,7 +108,12 @@ Request Body:
 ```
 {
     username: "newfubuki",
-    email: "newfubuki@gmail.com"
+    email: "newfubuki@gmail.com",
+    description: "We are friends!",
+    profile_image: file,
+    background_image: file,
+    is_remove_profile_image: true,
+    is_remove_background_image: true
 }
 ```
 #### Response

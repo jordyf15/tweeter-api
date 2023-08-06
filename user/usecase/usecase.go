@@ -86,6 +86,11 @@ func (usecase *userUsecase) Create(_user *models.User) (map[string]interface{}, 
 			Height:   user.BannerPictureHeight,
 		}
 
+		err = usecase.userRepo.Create(_user)
+		if err != nil {
+			return err
+		}
+
 		for _, img := range _user.ProfileImages {
 			resizedImageFile, err := utils.ResizeImage(profileImgNamedFileReader, int(img.Width), int(img.Height))
 			if err != nil {
@@ -106,11 +111,6 @@ func (usecase *userUsecase) Create(_user *models.User) (map[string]interface{}, 
 				fmt.Println(err)
 				return err
 			}
-		}
-
-		err = usecase.userRepo.Create(_user)
-		if err != nil {
-			return err
 		}
 
 		return <-uploadChannels
