@@ -42,6 +42,11 @@ func (_m *Storage) GetFileLink(key string) (string, error) {
 	return r0, r1
 }
 
+// RemoveFile provides a mock function with given fields: respond, wg, key
+func (_m *Storage) RemoveFile(respond chan<- error, wg *sync.WaitGroup, key string) {
+	_m.Called(respond, wg, key)
+}
+
 // UploadFile provides a mock function with given fields: respond, wg, file, key, metadata
 func (_m *Storage) UploadFile(respond chan<- error, wg *sync.WaitGroup, file io.ReadSeeker, key string, metadata map[string]string) {
 	_m.Called(respond, wg, file, key, metadata)

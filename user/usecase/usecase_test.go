@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/jordyf15/tweeter-api/user"
 	userMocks "github.com/jordyf15/tweeter-api/user/mocks"
 	"github.com/jordyf15/tweeter-api/user/usecase"
+	"github.com/jordyf15/tweeter-api/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -58,6 +60,17 @@ func bcryptHash(str string) string {
 }
 
 func (s *userUsecaseSuite) SetupTest() {
+	utUser1 = &models.User{
+		ID:                "id1",
+		Email:             "gura@gmail.com",
+		Fullname:          "gawr gura",
+		Username:          "gura",
+		Description:       "",
+		EncryptedPassword: bcryptHash("Password123!"),
+		FollowerCount:     0,
+		FollowingCount:    0,
+	}
+
 	s.userRepo = new(userMocks.Repository)
 	s.tokenRepo = new(tokenMocks.Repository)
 	s.storageMock = new(storageMocks.Storage)
@@ -65,6 +78,12 @@ func (s *userUsecaseSuite) SetupTest() {
 	s.storageMock.On("GetFileLink", mock.AnythingOfType("string")).Return("string", nil)
 	s.storageMock.On("AssignImageURLToUser", mock.AnythingOfType("*models.User"))
 	s.storageMock.On("UploadFile", mock.AnythingOfType("chan<- error"), mock.AnythingOfType("*sync.WaitGroup"), mock.AnythingOfType("*os.File"), mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string")).Run(func(args mock.Arguments) {
+		arg1 := args[0].(chan<- error)
+		arg1 <- nil
+		arg2 := args[1].(*sync.WaitGroup)
+		arg2.Done()
+	})
+	s.storageMock.On("RemoveFile", mock.AnythingOfType("chan<- error"), mock.AnythingOfType("*sync.WaitGroup"), mock.AnythingOfType("string")).Run(func(args mock.Arguments) {
 		arg1 := args[0].(chan<- error)
 		arg1 <- nil
 		arg2 := args[1].(*sync.WaitGroup)
@@ -370,4 +389,153 @@ func (s *userUsecaseSuite) TestChangeUserPasswordSuccessful() {
 	assert.NoError(s.T(), err)
 
 	s.userRepo.AssertNumberOfCalls(s.T(), "Update", 1)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileFullnameTooShort() {
+	updates := map[string]string{
+		"fullname": "",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrFullnameTooShort}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileFullnameTooLong() {
+	updates := map[string]string{
+		"fullname": "asdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdq",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrFullnameTooLong}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileUsernameTooShort() {
+	updates := map[string]string{
+		"username": "aa",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrUsernameTooShort}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileUsernameTooLong() {
+	updates := map[string]string{
+		"username": "asdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdqasdasdasdq",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrUsernameTooLong}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileUsernameInvalid() {
+	updates := map[string]string{
+		"username": "!!!",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrUsernameInvalid}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileEmailInvalid() {
+	updates := map[string]string{
+		"email": "jojo",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrEmailAddressInvalid}}
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileProfileImageInvalidFormat() {
+	updates := map[string]string{}
+
+	file, _ := os.Open("./../test_files/test_pic.gif")
+	newFileReader := utils.NewNamedFileReader(file, "test.gif")
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, newFileReader, nil, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrProfileImageInvalidFormat}}
+	defer file.Close()
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileBackgroundImageInvalidFormat() {
+	updates := map[string]string{}
+
+	file, _ := os.Open("./../test_files/test_pic.gif")
+	newFileReader := utils.NewNamedFileReader(file, "test.gif")
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, newFileReader, false, false)
+	expectedErrors := &custom_errors.MultipleErrors{Errors: []error{custom_errors.ErrBackgroundImageInvalidFormat}}
+	defer file.Close()
+
+	assert.Error(s.T(), err)
+	assert.Nil(s.T(), user)
+	assert.Equal(s.T(), expectedErrors.Error(), err.Error())
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 0)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 0)
+}
+
+func (s *userUsecaseSuite) TestEditUserProfileSuccessful() {
+	updates := map[string]string{
+		"username": "fubuking",
+	}
+
+	user, err := s.usecase.EditUserProfile(utUser1.ID, updates, nil, nil, false, false)
+
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), utUser1.Email, user.Email)
+	assert.Equal(s.T(), utUser1.Fullname, user.Fullname)
+	assert.Equal(s.T(), "fubuking", user.Username)
+	assert.Equal(s.T(), utUser1.FollowerCount, user.FollowerCount)
+	assert.Equal(s.T(), utUser1.FollowingCount, user.FollowingCount)
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "CreateTransaction", 1)
+	s.userRepo.AssertNumberOfCalls(s.T(), "GetByID", 1)
+	s.storageMock.AssertNumberOfCalls(s.T(), "AssignImageURLToUser", 1)
 }

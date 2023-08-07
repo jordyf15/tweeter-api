@@ -81,3 +81,25 @@ func (storage *cloudStorage) AssignImageURLToUser(user *models.User) {
 
 	user.BackgroundImage.URL, _ = storage.GetFileLink(user.ImagePath(&user.BackgroundImage))
 }
+
+func (api *cloudStorage) RemoveFile(respond chan<- error, wg *sync.WaitGroup, key string) {
+	if wg != nil {
+		defer wg.Done()
+	}
+
+	bucket, err := api.client.Bucket(os.Getenv("GCP_BUCKET_NAME"))
+	if err != nil {
+		respond <- err
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(api.ctx, time.Second*30)
+	defer cancel()
+
+	err = bucket.Object(key).Delete(ctx)
+	if err != nil {
+		fmt.Printf("gcp error: %v for key %s\n", err, key)
+	}
+
+	respond <- err
+}

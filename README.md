@@ -107,6 +107,7 @@ Request Header:
 Request Body:
 ```
 {
+    fullname: "shirakami fubuking",
     username: "newfubuki",
     email: "newfubuki@gmail.com",
     description: "We are friends!",

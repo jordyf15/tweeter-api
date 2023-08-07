@@ -172,18 +172,197 @@ func (usecase *userUsecase) Login(login, password string) (map[string]interface{
 	return response, nil
 }
 
-func (usecase *userInstanceUsecase) GenerateTokens() (*models.AccessToken, *models.RefreshToken, error) {
-	refreshToken := (&models.RefreshToken{UserID: usecase.user.ID})
-	refreshToken.Id = utils.RandString(8)
-	accessToken := (&models.AccessToken{UserID: usecase.user.ID}).SetExpiration(time.Now().Add(time.Hour * 1))
+func (usecase *userUsecase) EditUserProfile(userID string, updates map[string]string, profileImageReader, backgroundImageReader utils.NamedFileReader, willRemoveProfileImage, willRemoveBackgroundImage bool) (*models.User, error) {
+	errors := make([]error, 0)
 
-	tokenSet := &models.TokenSet{UserID: usecase.user.ID, RefreshTokenID: accessToken.RefreshTokenID}
-	err := usecase.tokenRepo.Create(tokenSet)
+	_user, err := usecase.userRepo.GetByID(userID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return accessToken, refreshToken, nil
+	if newFullname, isExist := updates["fullname"]; isExist && newFullname != _user.Fullname {
+		_user.Fullname = newFullname
+	}
+
+	if newUsername, isExist := updates["username"]; isExist && newUsername != _user.Username {
+		_user.Username = newUsername
+	}
+
+	if newEmail, isExist := updates["email"]; isExist && newEmail != _user.Email {
+		_user.Email = newEmail
+	}
+
+	if newDescription, isExist := updates["description"]; isExist && newDescription != _user.Description {
+		_user.Description = newDescription
+	}
+
+	validateFieldErrors := _user.VerifyFields()
+	if len(validateFieldErrors) > 0 {
+		errors = append(errors, validateFieldErrors...)
+	}
+
+	if profileImageReader != nil {
+		switch utils.GetFileExtension(profileImageReader.Name()) {
+		case "jpg", "jpeg", "png":
+			break
+		default:
+			errors = append(errors, custom_errors.ErrProfileImageInvalidFormat)
+		}
+	}
+
+	if backgroundImageReader != nil {
+		switch utils.GetFileExtension(backgroundImageReader.Name()) {
+		case "jpg", "jpeg", "png":
+			break
+		default:
+			errors = append(errors, custom_errors.ErrBackgroundImageInvalidFormat)
+		}
+	}
+
+	if len(errors) > 0 {
+		return nil, &custom_errors.MultipleErrors{Errors: errors}
+	}
+
+	previousProfileImages := _user.ProfileImages
+	previousBackgroundImage := _user.BackgroundImage
+	var newProfileImage utils.NamedFileReader
+	var newBackgroundImage utils.NamedFileReader
+
+	if profileImageReader != nil && !willRemoveProfileImage {
+		newProfileImage = profileImageReader
+		_user.ProfileImages = make([]*models.Image, len(user.ProfilePictureSizes))
+
+		for idx, res := range user.ProfilePictureSizes {
+			image := &models.Image{}
+			filename := utils.RandFileName("", "."+utils.GetFileExtension(profileImageReader.Name()))
+			image.Filename = filename
+			image.Width = res
+			image.Height = res
+
+			_user.ProfileImages[idx] = image
+		}
+	}
+
+	if backgroundImageReader != nil && !willRemoveBackgroundImage {
+		newBackgroundImage = backgroundImageReader
+		image := models.Image{}
+		image.Filename = utils.RandFileName("", "."+utils.GetFileExtension(backgroundImageReader.Name()))
+		image.Width = user.BannerPictureWidth
+		image.Height = user.BannerPictureHeight
+
+		_user.BackgroundImage = image
+	}
+
+	if willRemoveProfileImage && profileImageReader == nil {
+		defaultProfileImgFile, err := os.Open("./assets/images/default-profile.png")
+		if err != nil {
+			return nil, err
+		}
+		defer defaultProfileImgFile.Close()
+
+		newProfileImage = utils.NewNamedFileReader(defaultProfileImgFile, fmt.Sprintf("%s.%s", utils.RandString(8), utils.GetFileExtension(defaultProfileImgFile.Name())))
+		_user.ProfileImages = make([]*models.Image, len(user.ProfilePictureSizes))
+		for i, width := range user.ProfilePictureSizes {
+			image := &models.Image{}
+			filename := utils.RandFileName("", "."+utils.GetFileExtension(defaultProfileImgFile.Name()))
+			image.Filename = filename
+			image.Width = width
+			image.Height = width
+
+			_user.ProfileImages[i] = image
+		}
+	}
+
+	if willRemoveBackgroundImage && backgroundImageReader == nil {
+		defaultBannerImgFile, _ := os.Open("./assets/images/default-banner.jpg")
+		defer defaultBannerImgFile.Close()
+
+		newBackgroundImage = utils.NewNamedFileReader(defaultBannerImgFile, fmt.Sprintf("%s.%s", utils.RandString(8), utils.GetFileExtension(defaultBannerImgFile.Name())))
+		_user.BackgroundImage = models.Image{
+			Filename: utils.RandFileName("", "."+utils.GetFileExtension(defaultBannerImgFile.Name())),
+			Width:    user.BannerPictureWidth,
+			Height:   user.BannerPictureHeight,
+		}
+	}
+
+	err = usecase.userRepo.CreateTransaction(func(repo user.Repository) error {
+		err = usecase.userRepo.Update(_user)
+		if err != nil {
+			return err
+		}
+
+		var wg sync.WaitGroup
+		fileStorageChannelSizes := 0
+
+		if willRemoveBackgroundImage || backgroundImageReader != nil {
+			// 1 for saving and 1 for deleting
+			fileStorageChannelSizes += 2
+			wg.Add(2)
+		}
+		if willRemoveProfileImage || profileImageReader != nil {
+			// 2 for saving and 2 for deleting
+			fileStorageChannelSizes += 4
+			wg.Add(4)
+		}
+
+		fileStorageChannels := make(chan error, fileStorageChannelSizes)
+
+		if willRemoveBackgroundImage || backgroundImageReader != nil {
+			resizedImageFile, err := utils.ResizeImage(newBackgroundImage, int(user.BannerPictureWidth), int(user.BannerPictureHeight))
+			if err != nil {
+				return err
+			}
+
+			defer os.Remove(resizedImageFile.Name())
+			go usecase.storage.UploadFile(fileStorageChannels, &wg, resizedImageFile, _user.ImagePath(&_user.BackgroundImage), nil)
+
+			go usecase.storage.RemoveFile(fileStorageChannels, &wg, _user.ImagePath(&previousBackgroundImage))
+		}
+
+		if willRemoveProfileImage || profileImageReader != nil {
+			for _, img := range _user.ProfileImages {
+				resizedImageFile, err := utils.ResizeImage(newProfileImage, int(img.Width), int(img.Height))
+				if err != nil {
+					return err
+				}
+
+				defer os.Remove(resizedImageFile.Name())
+				go usecase.storage.UploadFile(fileStorageChannels, &wg, resizedImageFile, _user.ImagePath(img), nil)
+			}
+
+			for _, img := range previousProfileImages {
+				go usecase.storage.RemoveFile(fileStorageChannels, &wg, _user.ImagePath(img))
+			}
+		}
+
+		wg.Wait()
+		close(fileStorageChannels)
+
+		for err := range fileStorageChannels {
+			if err != nil {
+				return err
+			}
+		}
+
+		return <-fileStorageChannels
+	})
+
+	if err != nil {
+		switch actualErr := err.(type) {
+		case *custom_errors.MultipleErrors:
+			errors = append(errors, actualErr.Errors...)
+		default:
+			errors = append(errors, err)
+		}
+	}
+
+	if len(errors) > 0 {
+		return nil, &custom_errors.MultipleErrors{Errors: errors}
+	}
+
+	usecase.storage.AssignImageURLToUser(_user)
+
+	return _user, nil
 }
 
 func (usecase *userUsecase) ChangeUserPassword(userId, oldPassword, newPassword string) error {
@@ -211,4 +390,18 @@ func (usecase *userUsecase) ChangeUserPassword(userId, oldPassword, newPassword 
 	}
 
 	return nil
+}
+
+func (usecase *userInstanceUsecase) GenerateTokens() (*models.AccessToken, *models.RefreshToken, error) {
+	refreshToken := (&models.RefreshToken{UserID: usecase.user.ID})
+	refreshToken.Id = utils.RandString(8)
+	accessToken := (&models.AccessToken{UserID: usecase.user.ID}).SetExpiration(time.Now().Add(time.Hour * 1))
+
+	tokenSet := &models.TokenSet{UserID: usecase.user.ID, RefreshTokenID: accessToken.RefreshTokenID}
+	err := usecase.tokenRepo.Create(tokenSet)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return accessToken, refreshToken, nil
 }

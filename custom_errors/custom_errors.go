@@ -60,6 +60,10 @@ var (
 	ErrEmptyOldPassword = newErr(317, "Empty old password")
 	// ErrEmptyNewPassword Error returned when the inputted new password is an empty string
 	ErrEmptyNewPassword = newErr(318, "Empty new password")
+	// ErrProfileImageInvalidFormat Error returned when the uploaded profile image's format is not valid
+	ErrProfileImageInvalidFormat = newErr(319, "Profile image must be in JPEG format")
+	// ErrBackgroundImageInvalidFormat Error returned when the uploaded background image's format is not valid
+	ErrBackgroundImageInvalidFormat = newErr(320, "Background image must be in JPEG format")
 )
 
 type Error struct {

@@ -26,6 +26,7 @@ func initializeRoutes() {
 	router.POST("login", userController.Login)
 
 	router.POST("users/:user_id/password/change", middlewares.EnsureCurrentUserIDMatchesPath, userController.ChangeUserPassword)
+	router.PATCH("users/:user_id", middlewares.EnsureCurrentUserIDMatchesPath, userController.EditUserProfile)
 
 	router.POST("tokens/refresh", tokenController.RefreshAccessToken)
 	router.DELETE("tokens/remove", tokenController.DeleteRefreshToken)

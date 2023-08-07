@@ -76,6 +76,7 @@ func (s *userControllerSuite) SetupTest() {
 	userUsecase.On("Create", mock.AnythingOfType("*models.User")).Return(response, nil)
 	userUsecase.On("Login", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(response, nil)
 	userUsecase.On("ChangeUserPassword", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	userUsecase.On("EditUserProfile", mock.AnythingOfType("string"), mock.AnythingOfType("map[string]string"), mock.Anything, mock.Anything, mock.AnythingOfType("bool"), mock.AnythingOfType("bool")).Return(uctUser, nil)
 
 	s.controller = controllers.NewUsersController(userUsecase)
 	s.response = httptest.NewRecorder()
@@ -84,6 +85,7 @@ func (s *userControllerSuite) SetupTest() {
 	s.router.POST("/register", s.controller.Register)
 	s.router.POST("/login", s.controller.Login)
 	s.router.POST("users/:user_id/password/change", s.controller.ChangeUserPassword)
+	s.router.PATCH("/users/:user_id", s.controller.EditUserProfile)
 }
 
 func (s *userControllerSuite) TestCreateUser() {
@@ -376,4 +378,71 @@ func (s *userControllerSuite) TestChangeUserPasswordSuccessful() {
 	s.router.ServeHTTP(s.response, s.context.Request)
 
 	assert.Equal(s.T(), http.StatusNoContent, s.response.Code)
+}
+
+func (s *userControllerSuite) TestEditUserProfileSuccessful() {
+	var receivedResponse map[string]interface{}
+
+	buf := new(bytes.Buffer)
+	writer := multipart.NewWriter(buf)
+	fullname, _ := writer.CreateFormField("fullname")
+	fullname.Write([]byte("shirakami fubuki"))
+	username, _ := writer.CreateFormField("username")
+	username.Write([]byte("fubuki"))
+	description, _ := writer.CreateFormField("description")
+	description.Write([]byte("no 1 best fox friend"))
+	email, _ := writer.CreateFormField("email")
+	email.Write([]byte("fubuki@gmail.com"))
+	writer.Close()
+
+	s.context.Request, _ = http.NewRequest("PATCH", "/users/userId", buf)
+	s.context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+	s.router.ServeHTTP(s.response, s.context.Request)
+	json.NewDecoder(s.response.Body).Decode(&receivedResponse)
+
+	assert.Equal(s.T(), http.StatusOK, s.response.Code)
+
+	assert.Equal(s.T(), uctUser.ID, receivedResponse["id"])
+	assert.Equal(s.T(), uctUser.Username, receivedResponse["username"])
+	assert.Equal(s.T(), uctUser.Fullname, receivedResponse["fullname"])
+	assert.Equal(s.T(), uctUser.Email, receivedResponse["email"])
+	assert.Equal(s.T(), uctUser.Description, receivedResponse["description"])
+	assert.Equal(s.T(), float64(uctUser.FollowerCount), receivedResponse["follower_count"])
+	assert.Equal(s.T(), float64(uctUser.FollowingCount), receivedResponse["following_count"])
+
+	profileImages, isExist := receivedResponse["profile_images"].([]interface{})
+	assert.True(s.T(), isExist)
+	profileImage1 := profileImages[0].(map[string]interface{})
+	width, isExist := profileImage1["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[0].Width), width)
+	height, isExist := profileImage1["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[0].Height), height)
+	url, isExist := profileImage1["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.ProfileImages[0].URL, url)
+
+	profileImage2 := profileImages[1].(map[string]interface{})
+	width, isExist = profileImage2["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[1].Width), width)
+	height, isExist = profileImage2["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.ProfileImages[1].Height), height)
+	url, isExist = profileImage2["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.ProfileImages[1].URL, url)
+
+	backgroundImage, isExist := receivedResponse["background_image"].(map[string]interface{})
+	assert.True(s.T(), isExist)
+	width, isExist = backgroundImage["width"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.BackgroundImage.Width), width)
+	height, isExist = backgroundImage["height"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), float64(uctUser.BackgroundImage.Height), height)
+	url, isExist = backgroundImage["url"]
+	assert.True(s.T(), isExist)
+	assert.Equal(s.T(), uctUser.BackgroundImage.URL, url)
 }
