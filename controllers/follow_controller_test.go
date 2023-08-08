@@ -30,6 +30,7 @@ func (s *followControllerSuite) SetupTest() {
 	followUsecase := new(followMocks.Usecase)
 
 	followUsecase.On("FollowUser", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	followUsecase.On("UnfollowUser", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 	s.controller = controllers.NewFollowsController(followUsecase)
 	s.response = httptest.NewRecorder()
@@ -39,10 +40,21 @@ func (s *followControllerSuite) SetupTest() {
 		c.Set("current_user_id", "userID")
 		c.Next()
 	}, s.controller.FollowUser)
+	s.router.DELETE("/users/:user_id/follow", func(c *gin.Context) {
+		c.Set("current_user_id", "userID")
+		c.Next()
+	}, s.controller.UnfollowUser)
 }
 
 func (s *followControllerSuite) TestFollowUserSuccessful() {
 	s.context.Request, _ = http.NewRequest("POST", "/users/userID/follow", nil)
+	s.router.ServeHTTP(s.response, s.context.Request)
+
+	assert.Equal(s.T(), http.StatusNoContent, s.response.Code)
+}
+
+func (s *followControllerSuite) TestUnfollowUserSuccessful() {
+	s.context.Request, _ = http.NewRequest("DELETE", "/users/userID/follow", nil)
 	s.router.ServeHTTP(s.response, s.context.Request)
 
 	assert.Equal(s.T(), http.StatusNoContent, s.response.Code)

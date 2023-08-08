@@ -23,6 +23,20 @@ func (_m *Repository) Create(followerID string, followingID string) error {
 	return r0
 }
 
+// Delete provides a mock function with given fields: followerID, followingID
+func (_m *Repository) Delete(followerID string, followingID string) error {
+	ret := _m.Called(followerID, followingID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(followerID, followingID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 type mockConstructorTestingTNewRepository interface {
 	mock.TestingT
 	Cleanup(func())

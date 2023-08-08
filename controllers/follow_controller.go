@@ -9,6 +9,7 @@ import (
 
 type FollowsController interface {
 	FollowUser(c *gin.Context)
+	UnfollowUser(c *gin.Context)
 }
 
 type followsController struct {
@@ -24,6 +25,19 @@ func (controller *followsController) FollowUser(c *gin.Context) {
 	followingID := c.Param("user_id")
 
 	err := controller.usecase.FollowUser(followerID, followingID)
+	if err != nil {
+		respondBasedOnError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (controller *followsController) UnfollowUser(c *gin.Context) {
+	followerID := c.MustGet("current_user_id").(string)
+	followingID := c.Param("user_id")
+
+	err := controller.usecase.UnfollowUser(followerID, followingID)
 	if err != nil {
 		respondBasedOnError(c, err)
 		return

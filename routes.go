@@ -33,6 +33,7 @@ func initializeRoutes() {
 	router.POST("users/:user_id/password/change", middlewares.EnsureCurrentUserIDMatchesPath, userController.ChangeUserPassword)
 	router.PATCH("users/:user_id", middlewares.EnsureCurrentUserIDMatchesPath, userController.EditUserProfile)
 	router.POST("users/:user_id/follow", followController.FollowUser)
+	router.DELETE("users/:user_id/follow", followController.UnfollowUser)
 
 	router.POST("tokens/refresh", tokenController.RefreshAccessToken)
 	router.DELETE("tokens/remove", tokenController.DeleteRefreshToken)

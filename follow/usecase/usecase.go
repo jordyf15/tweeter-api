@@ -31,3 +31,11 @@ func (usecase *followUsecase) FollowUser(followerID, followingID string) error {
 
 	return usecase.followRepo.Create(followerID, followingID)
 }
+
+func (usecase *followUsecase) UnfollowUser(followerID, followingID string) error {
+	if followerID == followingID {
+		return custom_errors.ErrMatchedFollowerIDAndFollowingID
+	}
+
+	return usecase.followRepo.Delete(followerID, followingID)
+}

@@ -25,3 +25,7 @@ func (repo *followRepository) Create(followerID, followingID string) error {
 
 	return repo.DB.Create(follow).Error
 }
+
+func (repo *followRepository) Delete(followerID, followingID string) error {
+	return repo.DB.Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&models.Follow{}).Error
+}

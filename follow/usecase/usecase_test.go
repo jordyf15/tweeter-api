@@ -34,6 +34,7 @@ func (s *followUsecaseSuite) SetupTest() {
 
 	s.userRepo.On("IsIDExist", mock.AnythingOfType("string")).Return(isIdExist, nil)
 	s.followRepo.On("Create", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
+	s.followRepo.On("Delete", mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 	s.usecase = usecase.NewFollowUsecase(s.followRepo, s.userRepo)
 }
@@ -43,6 +44,9 @@ func (s *followUsecaseSuite) TestFollowUserMatchedFollowerIDAndFollowingID() {
 
 	assert.Error(s.T(), err)
 	assert.Equal(s.T(), custom_errors.ErrMatchedFollowerIDAndFollowingID.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "IsIDExist", 0)
+	s.followRepo.AssertNumberOfCalls(s.T(), "Create", 0)
 }
 
 func (s *followUsecaseSuite) TestFollowUserFollowingIDNotExist() {
@@ -50,10 +54,33 @@ func (s *followUsecaseSuite) TestFollowUserFollowingIDNotExist() {
 
 	assert.Error(s.T(), err)
 	assert.Equal(s.T(), custom_errors.ErrRecordNotFound.Error(), err.Error())
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "IsIDExist", 1)
+	s.followRepo.AssertNumberOfCalls(s.T(), "Create", 0)
 }
 
 func (s *followUsecaseSuite) TestFollowUserSuccessful() {
 	err := s.usecase.FollowUser("userID1", "userID2")
 
 	assert.NoError(s.T(), err)
+
+	s.userRepo.AssertNumberOfCalls(s.T(), "IsIDExist", 1)
+	s.followRepo.AssertNumberOfCalls(s.T(), "Create", 1)
+}
+
+func (s *followUsecaseSuite) TestUnfollowUserMatchedFollowerIDAndFollowingID() {
+	err := s.usecase.UnfollowUser("userID1", "userID1")
+
+	assert.Error(s.T(), err)
+	assert.Equal(s.T(), custom_errors.ErrMatchedFollowerIDAndFollowingID.Error(), err.Error())
+
+	s.followRepo.AssertNumberOfCalls(s.T(), "Delete", 0)
+}
+
+func (s *followUsecaseSuite) TestUnfollowUserSuccessful() {
+	err := s.usecase.UnfollowUser("userID1", "userID2")
+
+	assert.NoError(s.T(), err)
+
+	s.followRepo.AssertNumberOfCalls(s.T(), "Delete", 1)
 }
