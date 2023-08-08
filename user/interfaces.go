@@ -28,5 +28,6 @@ type Repository interface {
 	CreateTransaction(fn func(repo Repository) error) error
 	GetByEmailOrUsername(str string) (*models.User, error)
 	GetByID(id string) (*models.User, error)
+	IsIDExist(id string) (bool, error)
 	Update(user *models.User) error
 }

@@ -88,6 +88,27 @@ func (_m *Repository) GetByID(id string) (*models.User, error) {
 	return r0, r1
 }
 
+// IsIDExist provides a mock function with given fields: id
+func (_m *Repository) IsIDExist(id string) (bool, error) {
+	ret := _m.Called(id)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Update provides a mock function with given fields: _a0
 func (_m *Repository) Update(_a0 *models.User) error {
 	ret := _m.Called(_a0)

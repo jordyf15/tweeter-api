@@ -45,3 +45,9 @@ func (repo *userRepository) GetByID(id string) (*models.User, error) {
 func (repo *userRepository) Update(user *models.User) error {
 	return repo.DB.Model(user).Select("*").Updates(user).Error
 }
+
+func (repo *userRepository) IsIDExist(userID string) (bool, error) {
+	var count int64
+	err := repo.DB.Table("users").Where("id = (?)", userID).Count(&count).Error
+	return count > 0, err
+}

@@ -64,6 +64,10 @@ var (
 	ErrProfileImageInvalidFormat = newErr(319, "Profile image must be in JPEG format")
 	// ErrBackgroundImageInvalidFormat Error returned when the uploaded background image's format is not valid
 	ErrBackgroundImageInvalidFormat = newErr(320, "Background image must be in JPEG format")
+
+	// Follow Errors
+	// ErrMatchedFollowerIDAndFollowingID Error returned when the follower ID and following ID is the same
+	ErrMatchedFollowerIDAndFollowingID = newErr(401, "Follower ID and Following ID cannot be the same")
 )
 
 type Error struct {
