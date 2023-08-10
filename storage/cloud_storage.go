@@ -82,6 +82,12 @@ func (storage *cloudStorage) AssignImageURLToUser(user *models.User) {
 	user.BackgroundImage.URL, _ = storage.GetFileLink(user.ImagePath(&user.BackgroundImage))
 }
 
+func (storage *cloudStorage) AssignImageURLToGroup(group *models.Group) {
+	for _, img := range group.Images {
+		img.URL, _ = storage.GetFileLink(group.ImagePath(img))
+	}
+}
+
 func (api *cloudStorage) RemoveFile(respond chan<- error, wg *sync.WaitGroup, key string) {
 	if wg != nil {
 		defer wg.Done()

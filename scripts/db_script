@@ -1,6 +1,6 @@
 -- Enums
 CREATE TYPE tweet_reply_constraint AS ENUM('everyone', 'following-only');
-CREATE TYPE group_member_role AS ENUM('member', 'moderator');
+CREATE TYPE group_member_role AS ENUM('member', 'moderator','admin');
 
 -- Tables
 CREATE TABLE users (
@@ -35,8 +35,12 @@ CREATE TABLE groups (
 	id UUID PRIMARY KEY,
 	name VARCHAR(255) NOT NULL,
 	description TEXT NOT NULL,
-	image JSONB NOT NULL,
+	images JSONB NOT NULL,
 	member_count INT NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	creator_id UUID NOT NULL,
+	is_open BOOLEAN NOT NULL,
+	FOREIGN KEY(creator_id) REFERENCES users(id),
 	CHECK (LENGTH(name) >= 1)
 );
 
@@ -99,7 +103,7 @@ CREATE TABLE retweets(
 	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TABLE groupmembers (
+CREATE TABLE group_members (
 	group_id UUID NOT NULL,
 	member_id UUID NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL,
@@ -110,7 +114,7 @@ CREATE TABLE groupmembers (
 	FOREIGN KEY (member_id) REFERENCES users(id)
 );
 
-CREATE TABLE tagreferences(
+CREATE TABLE tag_references(
 	tag_id UUID NOT NULL,
 	resource_id UUID NOT NULL,
 	PRIMARY KEY(tag_id, resource_id),
@@ -136,6 +140,26 @@ CREATE TABLE token_sets (
 	prt_id TEXT,
 	updated_at TIMESTAMPTZ NOT NULL,
 	FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+CREATE TABLE group_join_requests(
+	id UUID PRIMARY KEY,
+	requester_id UUID NOT NULL,
+	group_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	FOREIGN KEY(requester_id) REFERENCES users(id),
+	FOREIGN KEY(group_id) REFERENCES groups(id)
+);
+
+CREATE TABLE group_invitations(
+	id UUID PRIMARY KEY,
+	group_id UUID NOT NULL,
+	inviter_id UUID NOT NULL,
+	invitee_id UUID NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL,
+	FOREIGN KEY(group_id) REFERENCES groups(id),
+	FOREIGN KEY(inviter_id) REFERENCES users(id),
+	FOREIGN KEY(invitee_id) REFERENCES users(id)
 );
 
 -- Triggers
@@ -193,7 +217,7 @@ END
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER maintain_hashtag_ref_count
-AFTER INSERT OR DELETE ON tagreferences
+AFTER INSERT OR DELETE ON tag_references
 FOR EACH ROW
 EXECUTE PROCEDURE maintain_hashtag_ref_count_trg();
 
@@ -307,7 +331,7 @@ END
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER maintain_group_member_count
-AFTER INSERT OR DELETE ON groupmembers
+AFTER INSERT OR DELETE ON group_members
 FOR EACH ROW
 EXECUTE PROCEDURE maintain_group_member_count_trg();
 

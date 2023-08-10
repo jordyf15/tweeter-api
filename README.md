@@ -828,6 +828,8 @@ Response Body:
     }
 }
 ```
+### Get Group Home
+Method: `GET`
 ### Get Group Tweets
 #### Request
 Method: `GET`  
@@ -940,6 +942,7 @@ Request Body:
     name: "hololive",
     description: "vtuber comedian group hololive",
     image: img1,
+    is_open: "true"
 }
 ```
 #### Response
@@ -966,6 +969,7 @@ Request Body:
     name: "hololive",
     description: "vtuber comedian group hololive",
     image: img1,
+    is_open: "true",
 }
 ```
 #### Response
@@ -990,7 +994,7 @@ Status Code: `204`
 ### Join Group
 #### Request
 Method: `POST`  
-Route: `/groups/:group_id/members`  
+Route: `/groups/:group_id/join`  
 Request Header:
 ```
 {
@@ -999,6 +1003,82 @@ Request Header:
 ```
 #### Response
 Status Code: `204`
+### Request Join Group
+#### Request
+Method: `POST`  
+Route: `/groups/:group_id/join_request`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  
+### Accept Join Request
+Method: `POST`  
+Route: `/groups/:group_id/join_request/:join_request_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  
+### Deny Join Group Request
+Method: `DELETE`  
+Route: `/groups/:group_id/join_request/:join_request_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  
+### Create Group Invitation
+#### Request
+Method: `POST`  
+Route: `/groups/:group_id/invitation`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `200`  
+Response Body:  
+```
+{
+    //group invitation data
+}
+```
+### Accept Group Invitation
+#### Request
+Method: `POST`  
+Route: `/groups/:group_id/invitation/:invitation_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  
+### Deny Group Invitation
+#### Request
+Method: `DELETE`  
+Route: `/groups/:group_id/invitation/:invitation_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  
 ### Edit Group Member Role
 #### Request
 Method: `PATCH`  
@@ -1029,3 +1109,65 @@ Request Header:
 ```
 #### Response
 Status Code: `204`
+### Create Group Rules
+#### Request
+Method: `POST`  
+Route: `/groups/:group_id/rules`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+Request Body:
+```
+{
+    name: "Do not spam",
+    description: "Please do not spam because ..."
+}
+```
+#### Response
+Status Code: `200`  
+Response Body:
+```
+{
+    // group_rule data
+}
+```
+### Update Group Rule
+#### Request
+Method: `PATCH`  
+Route: `/groups/:group_id/rules/:rule_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+Request Body:
+```
+{
+    name: "Do not spam",
+    description: "Please do not spam because ..."
+}
+```
+#### Response
+Status Code: `200`  
+Response Body:
+```
+{
+    // group_rule data
+}
+```
+### Delete Group Rule
+#### Request
+Method: `DELETE`  
+Route: `/groups/:group_id/rules/:rule_id`  
+Request Header:
+```
+{
+    Authorization: "Bearer accesstoken"
+}
+```
+#### Response
+Status Code: `204`  

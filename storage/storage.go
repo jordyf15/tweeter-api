@@ -12,4 +12,5 @@ type Storage interface {
 	RemoveFile(respond chan<- error, wg *sync.WaitGroup, key string)
 	GetFileLink(key string) (string, error)
 	AssignImageURLToUser(model *models.User)
+	AssignImageURLToGroup(model *models.Group)
 }

@@ -68,6 +68,20 @@ var (
 	// Follow Errors
 	// ErrMatchedFollowerIDAndFollowingID Error returned when the follower ID and following ID is the same
 	ErrMatchedFollowerIDAndFollowingID = newErr(401, "Follower ID and Following ID cannot be the same")
+
+	// Group Errors
+	// ErrGroupNameTooShort Error returned when the inputted name is too short
+	ErrGroupNameTooShort = newErr(501, "Group name is too short")
+	// ErrGroupNameTooLong Error returned when the inputted name is too long
+	ErrGroupNameTooLong = newErr(502, "Group name is too long")
+	// ErrGroupNameAlreadyExist Error returned when the inputted group name is already used
+	ErrGroupNameAlreadyExist = newErr(503, "Group name already exist")
+	// ErrGroupImageTooLarge Error returned when the uploaded group image is too large
+	ErrGroupImageTooLarge = newErr(504, "Group image must be less than 5MB")
+	// ErrGroupImageInvalid Error returned when the uploaded group image's format is invalid
+	ErrGroupImageInvalidFormat = newErr(505, "Group image must be in JPEG format")
+	// ErrGroupImageMissing Error returned when no group image is uploaded
+	ErrGroupImageMissing = newErr(506, "Group image cannot be empty")
 )
 
 type Error struct {

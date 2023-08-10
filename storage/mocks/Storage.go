@@ -16,6 +16,11 @@ type Storage struct {
 	mock.Mock
 }
 
+// AssignImageURLToGroup provides a mock function with given fields: model
+func (_m *Storage) AssignImageURLToGroup(model *models.Group) {
+	_m.Called(model)
+}
+
 // AssignImageURLToUser provides a mock function with given fields: model
 func (_m *Storage) AssignImageURLToUser(model *models.User) {
 	_m.Called(model)
